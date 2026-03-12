@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+dist/
+build/
+*.egg-info/
+*.spec.pyc
+.DS_Store
+*.faiss
+*.json
+!requirements.txt
+~/.tpv_golf/
