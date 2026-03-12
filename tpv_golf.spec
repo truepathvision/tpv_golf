@@ -15,7 +15,7 @@ a = Analysis(
     ["src/main.py"],
     pathex=["src"],
     binaries=[],
-    datas=datas,
+    datas=datas + [("assets/icon.png", "assets")],
     hiddenimports=hidden_imports + [
         "PySide6.QtWidgets",
         "PySide6.QtCore",
@@ -65,7 +65,7 @@ if sys.platform == "darwin":
     app = BUNDLE(
         coll,
         name="TPV_Golf.app",
-        icon=None,
+        icon="assets/icon.png",
         bundle_identifier="com.tpv.golf",
         info_plist={
             "NSHighResolutionCapable": True,

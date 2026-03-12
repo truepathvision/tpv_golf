@@ -9,6 +9,5 @@ build/
 *.spec.pyc
 .DS_Store
 *.faiss
-*.json
-!requirements.txt
+*.db.json
 ~/.tpv_golf/

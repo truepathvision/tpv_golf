@@ -1,8 +1,9 @@
+import json
 import os
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog,
-    QProgressBar, QSizePolicy,
+    QProgressBar, QSizePolicy, QMessageBox,
 )
 from PySide6.QtCore import Qt, Signal, QThread, QObject
 import numpy as np
@@ -51,6 +52,11 @@ class SourcePanel(QWidget):
         self._search_btn.setEnabled(False)
         self._search_btn.clicked.connect(self._on_search)
 
+        self._save_emb_btn = QPushButton("Save Embedding")
+        self._save_emb_btn.setEnabled(False)
+        self._save_emb_btn.setToolTip("Save the probe image's embedding vector to disk")
+        self._save_emb_btn.clicked.connect(self._on_save_embedding)
+
         self._status_label = QLabel("No image loaded")
         self._status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -65,6 +71,7 @@ class SourcePanel(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.addWidget(self._open_btn)
         btn_layout.addWidget(self._search_btn)
+        btn_layout.addWidget(self._save_emb_btn)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -95,6 +102,7 @@ class SourcePanel(QWidget):
         self._current_path = path
         self._current_embedding = None
         self._search_btn.setEnabled(False)
+        self._save_emb_btn.setEnabled(False)
 
         self._viewer.set_image_from_path(path)
         self._filename_label.setText(os.path.basename(path))
@@ -142,6 +150,7 @@ class SourcePanel(QWidget):
         if embedding is not None:
             self._current_embedding = embedding
             self._search_btn.setEnabled(True)
+            self._save_emb_btn.setEnabled(True)
             self._status_label.setText("Ready — click Search Matches")
         else:
             self._status_label.setText("No face detected in image")
@@ -152,6 +161,36 @@ class SourcePanel(QWidget):
             self._worker_thread.quit()
             self._worker_thread.wait()
         self._status_label.setText(f"Error: {msg}")
+
+    def _on_save_embedding(self):
+        if self._current_embedding is None or self._current_path is None:
+            return
+
+        base_name = os.path.splitext(os.path.basename(self._current_path))[0]
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Embedding Vector", base_name + "_embedding",
+            "NumPy Array (*.npy);;JSON (*.json);;All Files (*)",
+        )
+        if not path:
+            return
+
+        try:
+            if path.endswith(".json"):
+                data = {
+                    "source_image": self._current_path,
+                    "embedding": self._current_embedding.tolist(),
+                    "dimension": len(self._current_embedding),
+                }
+                with open(path, "w") as f:
+                    json.dump(data, f, indent=2)
+            else:
+                if not path.endswith(".npy"):
+                    path += ".npy"
+                np.save(path, self._current_embedding)
+
+            self._status_label.setText(f"Embedding saved to {os.path.basename(path)}")
+        except Exception as e:
+            QMessageBox.critical(self, "Save Error", f"Failed to save embedding:\n{e}")
 
     def _on_search(self):
         if self._current_embedding is not None and self._current_path:
