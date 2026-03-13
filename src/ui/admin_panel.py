@@ -82,11 +82,13 @@ class AdminPanel(QDialog):
 
         # --- Table of entries ---
         self._table = QTableWidget()
-        self._table.setColumnCount(3)
-        self._table.setHorizontalHeaderLabels(["Thumb", "#", "Image Path"])
+        self._table.setColumnCount(5)
+        self._table.setHorizontalHeaderLabels(["Thumb", "#", "Image Path", "Age", "Gender"])
         self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self._table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self._table.setColumnWidth(0, THUMB_SIZE + 12)
         self._table.setIconSize(QSize(THUMB_SIZE, THUMB_SIZE))
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -184,6 +186,14 @@ class AdminPanel(QDialog):
             path_item = QTableWidgetItem(path)
             path_item.setToolTip(path)
             self._table.setItem(i, 2, path_item)
+
+            age = entry.get("age")
+            age_item = QTableWidgetItem(str(age) if age is not None else "")
+            self._table.setItem(i, 3, age_item)
+
+            gender = entry.get("gender")
+            gender_item = QTableWidgetItem(gender if gender else "")
+            self._table.setItem(i, 4, gender_item)
 
         self._table.setSortingEnabled(True)
 

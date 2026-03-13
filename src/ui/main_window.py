@@ -130,6 +130,10 @@ class MainWindow(QMainWindow):
         self._act_admin.triggered.connect(self._on_admin_panel)
         admin_menu.addAction(self._act_admin)
 
+        self._act_model = QAction("Switch Model...", self)
+        self._act_model.triggered.connect(self._on_switch_model)
+        admin_menu.addAction(self._act_model)
+
         help_menu = menubar.addMenu("Help")
         act_about = QAction("About", self)
         act_about.triggered.connect(self._on_about)
@@ -190,7 +194,7 @@ class MainWindow(QMainWindow):
             )
             self._case_store.add_image(self._active_case_id, path, role="source")
 
-    def _on_search(self, embedding: np.ndarray, source_path: str):
+    def _on_search(self, embedding: np.ndarray, source_path: str, min_score: float = 0.0):
         if self._vector_store.is_empty():
             QMessageBox.warning(
                 self, "No Database",
@@ -198,8 +202,17 @@ class MainWindow(QMainWindow):
             )
             return
 
-        results = self._vector_store.search(embedding, k=10)
-        result_dicts = [{"path": r.path, "score": r.score, "index_id": r.index_id} for r in results]
+        results = self._vector_store.search(embedding, k=10, min_score=min_score)
+        result_dicts = [
+            {
+                "path": r.path,
+                "score": r.score,
+                "index_id": r.index_id,
+                "age": r.age,
+                "gender": r.gender,
+            }
+            for r in results
+        ]
         self._results_panel.set_results(result_dicts)
 
         if self._active_case_id:
@@ -387,12 +400,44 @@ class MainWindow(QMainWindow):
         dlg.exec()
         self._update_status()
 
+    def _on_switch_model(self):
+        from core.embedder import AVAILABLE_MODELS, get_active_model, set_model
+        from PySide6.QtWidgets import QInputDialog
+
+        current = get_active_model()
+        items = [f"{name}  —  {desc}" for name, desc in AVAILABLE_MODELS.items()]
+        current_idx = list(AVAILABLE_MODELS.keys()).index(current)
+
+        chosen, ok = QInputDialog.getItem(
+            self, "Switch Recognition Model",
+            f"Current model: {current}\n\n"
+            "Warning: switching models invalidates existing embeddings.\n"
+            "You should rebuild the database after switching.\n\n"
+            "Select model:",
+            items, current_idx, False,
+        )
+        if not ok or not chosen:
+            return
+        name = chosen.split("  —")[0].strip()
+        if name == current:
+            return
+        set_model(name)
+        self._statusbar.showMessage(f"Model switched to {name} — rebuild database recommended", 8000)
+        QMessageBox.information(
+            self, "Model Changed",
+            f"Switched to {name}.\n\n"
+            "Important: existing embeddings were created with a different model. "
+            "Rebuild your database (File > Build Vector Database) for accurate results.",
+        )
+
     def _on_about(self):
+        from core.embedder import get_active_model
         QMessageBox.about(
             self, "About TPV_Golf",
             "TPV_Golf — Image Matcher\n\n"
             "Face image matching using InsightFace embeddings\n"
             "and FAISS vector search.\n\n"
+            f"Active model: {get_active_model()}\n"
             "Built with PySide6.",
         )
 

@@ -3,7 +3,7 @@ import os
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog,
-    QProgressBar, QSizePolicy, QMessageBox,
+    QProgressBar, QSizePolicy, QMessageBox, QSlider, QGroupBox,
 )
 from PySide6.QtCore import Qt, Signal, QThread, QObject
 import numpy as np
@@ -34,7 +34,7 @@ class _EmbedWorker(QObject):
 class SourcePanel(QWidget):
     """Left 1/3 panel: open image, view it, search for matches."""
 
-    search_requested = Signal(np.ndarray, str)  # (embedding, image_path)
+    search_requested = Signal(np.ndarray, str, float)  # (embedding, image_path, min_score)
     image_opened = Signal(str)
 
     def __init__(self, parent=None):
@@ -57,6 +57,14 @@ class SourcePanel(QWidget):
         self._save_emb_btn.setToolTip("Save the probe image's embedding vector to disk")
         self._save_emb_btn.clicked.connect(self._on_save_embedding)
 
+        self._threshold_slider = QSlider(Qt.Orientation.Horizontal)
+        self._threshold_slider.setRange(0, 80)
+        self._threshold_slider.setValue(20)
+        self._threshold_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self._threshold_slider.setTickInterval(10)
+        self._threshold_label = QLabel("Min score: 0.20")
+        self._threshold_slider.valueChanged.connect(self._on_threshold_changed)
+
         self._status_label = QLabel("No image loaded")
         self._status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -73,11 +81,16 @@ class SourcePanel(QWidget):
         btn_layout.addWidget(self._search_btn)
         btn_layout.addWidget(self._save_emb_btn)
 
+        threshold_layout = QHBoxLayout()
+        threshold_layout.addWidget(self._threshold_label)
+        threshold_layout.addWidget(self._threshold_slider, 1)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.addLayout(btn_layout)
         layout.addWidget(self._filename_label)
         layout.addWidget(self._viewer, 1)
+        layout.addLayout(threshold_layout)
         layout.addWidget(self._progress)
         layout.addWidget(self._status_label)
 
@@ -192,6 +205,15 @@ class SourcePanel(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Save Error", f"Failed to save embedding:\n{e}")
 
+    def _on_threshold_changed(self, value: int):
+        self._threshold_label.setText(f"Min score: {value / 100:.2f}")
+
+    @property
+    def min_score(self) -> float:
+        return self._threshold_slider.value() / 100.0
+
     def _on_search(self):
         if self._current_embedding is not None and self._current_path:
-            self.search_requested.emit(self._current_embedding, self._current_path)
+            self.search_requested.emit(
+                self._current_embedding, self._current_path, self.min_score
+            )
